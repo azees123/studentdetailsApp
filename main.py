@@ -9,6 +9,8 @@ from kivymd.uix.datatables import MDDataTable
 from kivy.metrics import dp
 import pandas as pd
 from kivymd.uix.pickers import MDDatePicker
+from android.storage import primary_external_storage_path
+import os
 
 
 
@@ -97,14 +99,18 @@ def get_all_payments():
 
 def export_data():
     try:
+        from android.storage import primary_external_storage_path
+        export_path = os.path.join(primary_external_storage_path(), "StudentAppExports")
+        os.makedirs(export_path, exist_ok=True)
+
         conn = sqlite3.connect("students.db")
         students_df = pd.read_sql_query("SELECT * FROM students", conn)
         payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
 
-        students_df.to_excel("students.xlsx", index=False)
-        payments_df.to_excel("payments.xlsx", index=False)
+        students_df.to_excel(os.path.join(export_path, "students.xlsx"), index=False)
+        payments_df.to_excel(os.path.join(export_path, "payments.xlsx"), index=False)
         conn.close()
-        return "Exported to students.xlsx and payments.xlsx successfully!"
+        return f"Exported successfully to: {export_path}"
     except Exception as e:
         return f"Export failed: {str(e)}"
 
