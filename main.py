@@ -14,6 +14,7 @@ from kivy.utils import platform
 
 
 
+
 def create_tables():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -539,9 +540,20 @@ ScreenManager:
 
 class StudentApp(MDApp):
     def build(self):
-        self.theme_cls.primary_palette = "Indigo"
-        create_tables()
-        return Builder.load_string(KV)
+        try:
+            self.theme_cls.primary_palette = "Indigo"
+            create_tables()
+            return Builder.load_string(KV)
+        except Exception as e:
+            return self.show_error_dialog(str(e))
+
+    def show_error_dialog(self, msg):
+        dialog = MDDialog(
+            title="App Startup Error",
+            text=msg,
+            buttons=[MDFlatButton(text="Exit", on_release=lambda x: exit())]
+        )
+        dialog.open()
 
 
 if __name__ == '__main__':
