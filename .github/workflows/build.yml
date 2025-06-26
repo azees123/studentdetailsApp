@@ -15,50 +15,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.10
+          python-version: 3.8
 
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo apt-get install -y libunwind-dev  # ✅ Fix dependency issue
           sudo apt-get install -y \
-            build-essential \
-            ccache \
-            libffi-dev \
-            libssl-dev \
-            libsqlite3-dev \
-            zlib1g-dev \
-            libjpeg-dev \
-            libandroid-support-dev \
-            libfreetype6-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libswscale-dev \
-            libgstreamer1.0-dev \
-            libmtdev-dev \
-            libgl1-mesa-dev \
-            git \
-            python3-pip \
-            unzip \
-            openjdk-17-jdk
+            zip unzip openjdk-17-jdk python3-pip \
+            libfreetype6-dev libpng-dev libz-dev \
+            libffi-dev build-essential \
+            libsqlite3-dev libjpeg-dev
 
-      - name: Install Buildozer and Cython
-        run: |
-          python3 -m pip install --upgrade pip
-          pip install cython==0.29.36
-          pip install buildozer
-
-      - name: Accept Android SDK Licenses
-        run: |
-          yes | sdkmanager --licenses || true
+          pip install --upgrade pip setuptools wheel Cython==0.29.36
+          pip install buildozer==1.5.0
 
       - name: Build APK
         run: |
-          buildozer -v android debug
+          buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: studentdetailsapp-apk
+          name: studentdetailsapp-debug.apk
           path: bin/*.apk
