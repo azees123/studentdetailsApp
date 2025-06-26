@@ -9,16 +9,16 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Code
+      - name: ✅ Checkout Code
         uses: actions/checkout@v4
 
-      - name: Fix libtinfo5 Compatibility
+      - name: ✅ Fix libtinfo Compatibility (for buildozer)
         run: |
           sudo apt-get update
           sudo apt-get install -y libtinfo6
           sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-      - name: Cache Buildozer Dependencies
+      - name: ✅ Cache Buildozer Dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -29,13 +29,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
-      - name: Build Android APK
+      - name: ✅ Build Android APK
         uses: digreatbrian/buildozer-action@v2
         with:
           python-version: 3.8
+          buildozer-version: stable
           buildozer-cmd: buildozer -v android debug
 
-      - name: Upload APK
+      - name: ✅ Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: studentapp-apk
