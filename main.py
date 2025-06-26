@@ -1,3 +1,4 @@
+# ✅ main.py
 from kivymd.app import MDApp
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
@@ -9,6 +10,8 @@ from kivymd.uix.pickers import MDDatePicker
 from kivy.metrics import dp
 import sqlite3
 import pandas as pd
+import os
+from android.storage import primary_external_storage_path
 
 KV = '''
 ScreenManager:
@@ -164,27 +167,22 @@ ScreenManager:
                 on_release: root.do_export()
 '''
 
-
 class MainScreen(Screen): pass
 class AddStudentScreen(Screen):
     def show_date_picker(self):
-        MDDatePicker(bind=True, on_save=self.set_date).open()
+        MDDatePicker(on_save=self.set_date).open()
 
     def set_date(self, instance, value, date_range):
         self.ids.date.text = str(value)
 
     def submit(self):
-        data = {
-            "name": self.ids.name.text,
-            "aadhaar": self.ids.aadhaar.text,
-            "qualification": self.ids.qualification.text,
-            "course_name": self.ids.course.text,
-            "phone_no": self.ids.phone.text,
-            "fees": self.ids.fees.text,
-            "date_of_joining": self.ids.date.text,
-        }
+        data = {k: self.ids[k].text for k in ["name", "aadhaar", "qualification", "course", "phone", "fees", "date"]}
+        if not all(data.values()):
+            self.show_dialog("Error", "All fields are required.")
+            return
         result = add_student(data)
         self.show_dialog("Student Entry", result)
+        for k in data: self.ids[k].text = ""
 
     def show_dialog(self, title, text):
         dialog = MDDialog(title=title, text=text, buttons=[MDFlatButton(text="OK", on_release=lambda x: dialog.dismiss())])
@@ -194,18 +192,20 @@ class AddStudentScreen(Screen):
 
 class AddPaymentScreen(Screen):
     def show_date_picker(self):
-        MDDatePicker(bind=True, on_save=self.set_date).open()
+        MDDatePicker(on_save=self.set_date).open()
 
     def set_date(self, instance, value, date_range):
         self.ids.date.text = str(value)
 
     def submit_payment(self):
-        result = add_payment(
-            self.ids.aadhaar_phone.text,
-            float(self.ids.amount.text),
-            self.ids.date.text
-        )
+        try:
+            amount = float(self.ids.amount.text)
+        except:
+            self.show_dialog("Error", "Enter valid amount.")
+            return
+        result = add_payment(self.ids.aadhaar_phone.text, amount, self.ids.date.text)
         self.show_dialog("Payment Entry", result)
+        self.ids.aadhaar_phone.text = self.ids.amount.text = self.ids.date.text = ""
 
     def show_dialog(self, title, text):
         dialog = MDDialog(title=title, text=text, buttons=[MDFlatButton(text="OK", on_release=lambda x: dialog.dismiss())])
@@ -220,11 +220,7 @@ class ViewStudentsScreen(Screen):
         if not students:
             self.ids.box.add_widget(MDLabel(text="No students found", halign="center"))
             return
-        table = MDDataTable(
-            size_hint=(1, 1),
-            column_data=[("ID", dp(30)), ("Name", dp(40)), ("Aadhaar", dp(60)), ("Phone", dp(60)), ("Fees", dp(40)), ("Remain", dp(40))],
-            row_data=[(str(s[0]), s[1], s[2], s[5], str(s[6]), str(s[7])) for s in students],
-        )
+        table = MDDataTable(size_hint=(1, 1), column_data=[("ID", dp(30)), ("Name", dp(40)), ("Aadhaar", dp(60)), ("Phone", dp(60)), ("Fees", dp(40)), ("Remain", dp(40))], row_data=[(str(s[0]), s[1], s[2], s[5], str(s[6]), str(s[7])) for s in students])
         self.ids.box.add_widget(table)
 
     def go_back(self): self.manager.current = 'main'
@@ -237,19 +233,18 @@ class ViewPaymentsScreen(Screen):
         if not payments:
             self.ids.table_container.add_widget(MDLabel(text="No payments found", halign="center"))
             return
-        table = MDDataTable(
-            size_hint=(1, 1),
-            column_data=[("PID", dp(30)), ("Name", dp(40)), ("Amount", dp(40)), ("Date", dp(60))],
-            row_data=[(str(p[0]), p[2], str(p[4]), p[5]) for p in payments]
-        )
+        table = MDDataTable(size_hint=(1, 1), column_data=[("PID", dp(30)), ("Name", dp(40)), ("Amount", dp(40)), ("Date", dp(60))], row_data=[(str(p[0]), p[2], str(p[4]), p[5]) for p in payments])
         self.ids.table_container.add_widget(table)
+        total = sum(float(p[4]) for p in payments)
+        self.ids.summary_container.add_widget(MDLabel(text=f"Total Amount Paid: ₹{total}", halign="center"))
 
     def go_back(self): self.manager.current = 'main'
 
 class ExportScreen(Screen):
     def do_export(self):
         msg = export_data()
-        MDDialog(title="Export", text=msg, buttons=[MDFlatButton(text="OK", on_release=lambda x: x.parent.parent.dismiss())]).open()
+        dialog = MDDialog(title="Export", text=msg, buttons=[MDFlatButton(text="OK", on_release=lambda x: dialog.dismiss())])
+        dialog.open()
 
     def go_back(self): self.manager.current = 'main'
 
@@ -272,8 +267,8 @@ def add_student(data):
         cur.execute("""INSERT INTO students
             (name, aadhaar, qualification, course_name, phone_no, full_fees, remaining_balance, date_of_joining)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (data["name"], data["aadhaar"], data["qualification"], data["course_name"],
-             data["phone_no"], float(data["fees"]), float(data["fees"]), data["date_of_joining"]))
+            (data["name"], data["aadhaar"], data["qualification"], data["course"],
+             data["phone"], float(data["fees"]), float(data["fees"]), data["date"]))
         conn.commit()
         return "Student added."
     except Exception as e:
@@ -315,13 +310,15 @@ def get_all_payments():
 
 def export_data():
     try:
+        export_dir = os.path.join(primary_external_storage_path(), "StudentAppExports")
+        os.makedirs(export_dir, exist_ok=True)
         conn = sqlite3.connect("students.db")
         df1 = pd.read_sql_query("SELECT * FROM students", conn)
         df2 = pd.read_sql_query("SELECT * FROM payments", conn)
-        df1.to_excel("students.xlsx", index=False)
-        df2.to_excel("payments.xlsx", index=False)
+        df1.to_excel(os.path.join(export_dir, "students.xlsx"), index=False)
+        df2.to_excel(os.path.join(export_dir, "payments.xlsx"), index=False)
         conn.close()
-        return "Exported to students.xlsx and payments.xlsx"
+        return f"Exported to {export_dir}"
     except Exception as e:
         return f"Export failed: {str(e)}"
 
