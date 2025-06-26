@@ -19,7 +19,8 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 
 # (list) Application requirements
-requirements = python3,kivy,kivymd,pandas,openpyxl
+requirements = python3,kivy,kivymd,pandas,openpyxl,sqlite3,numpy
+
 
 # (list) Supported orientations
 orientation = portrait
