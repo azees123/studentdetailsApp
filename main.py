@@ -1,19 +1,25 @@
+# main.py
 from kivymd.app import MDApp
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
-import sqlite3
 from kivymd.uix.datatables import MDDataTable
 from kivy.metrics import dp
-import pandas as pd
 from kivymd.uix.pickers import MDDatePicker
-from android.storage import primary_external_storage_path
+import sqlite3
+import pandas as pd
 import os
 
+# Android storage support
+try:
+    from android.storage import primary_external_storage_path
+    ANDROID = True
+except ImportError:
+    ANDROID = False
 
-
+# Create DB tables
 def create_tables():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -36,7 +42,7 @@ def create_tables():
     conn.commit()
     conn.close()
 
-
+# Add student
 def add_student(data):
     try:
         conn = sqlite3.connect("students.db")
@@ -55,7 +61,7 @@ def add_student(data):
     finally:
         conn.close()
 
-
+# Add payment
 def add_payment(aadhaar_or_phone, amount, date):
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -75,7 +81,7 @@ def add_payment(aadhaar_or_phone, amount, date):
     conn.close()
     return "Payment recorded."
 
-
+# Fetch all students
 def get_all_students():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -84,6 +90,7 @@ def get_all_students():
     conn.close()
     return rows
 
+# Fetch all payments
 def get_all_payments():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -96,30 +103,31 @@ def get_all_payments():
     conn.close()
     return rows
 
-
+# Export CSV files
 def export_data():
     try:
-        from android.storage import primary_external_storage_path
-        export_path = os.path.join(primary_external_storage_path(), "StudentAppExports")
-        os.makedirs(export_path, exist_ok=True)
-
         conn = sqlite3.connect("students.db")
         students_df = pd.read_sql_query("SELECT * FROM students", conn)
         payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
 
-        students_df.to_excel(os.path.join(export_path, "students.xlsx"), index=False)
-        payments_df.to_excel(os.path.join(export_path, "payments.xlsx"), index=False)
+        if ANDROID:
+            export_path = os.path.join(primary_external_storage_path(), "StudentAppExports")
+        else:
+            export_path = os.path.join(os.getcwd(), "exports")
+
+        os.makedirs(export_path, exist_ok=True)
+
+        students_df.to_csv(os.path.join(export_path, "students.csv"), index=False)
+        payments_df.to_csv(os.path.join(export_path, "payments.csv"), index=False)
+
         conn.close()
-        return f"Exported successfully to: {export_path}"
+        return f"Exported to: {export_path}"
     except Exception as e:
         return f"Export failed: {str(e)}"
 
-
-
-
+# Screen classes
 class MainScreen(Screen):
     pass
-
 
 class AddStudentScreen(Screen):
     def submit(self):
@@ -157,7 +165,6 @@ class AddStudentScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
 class AddPaymentScreen(Screen):
     def submit_payment(self):
         id_val = self.ids.aadhaar_phone.text
@@ -191,7 +198,6 @@ class AddPaymentScreen(Screen):
 
     def go_back(self):
         self.manager.current = 'main'
-
 
 class ViewStudentsScreen(Screen):
     def on_enter(self):
@@ -228,7 +234,6 @@ class ViewStudentsScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
 class ViewPaymentsScreen(Screen):
     def on_enter(self):
         self.ids.table_container.clear_widgets()
@@ -262,7 +267,6 @@ class ViewPaymentsScreen(Screen):
         )
         self.ids.table_container.add_widget(table)
 
-        
         totals = {}
         for p in payments:
             student_id = p[1]
@@ -281,8 +285,6 @@ class ViewPaymentsScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
-
 class ExportScreen(Screen):
     def do_export(self):
         msg = export_data()
@@ -298,239 +300,12 @@ class ExportScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
-
-
-KV = '''
-ScreenManager:
-    MainScreen:
-    AddStudentScreen:
-    AddPaymentScreen:
-    ViewStudentsScreen:
-    ViewPaymentsScreen:
-    ExportScreen:
-
-<MainScreen>:
-    name: 'main'
-    MDBoxLayout:
-        orientation: "vertical"
-        MDTopAppBar:
-            title: "Student Management"
-            elevation: 10
-            pos_hint: {"top": 1}
-        Widget:
-            size_hint_y: None
-            height: dp(20)
-        ScrollView:
-            MDBoxLayout:
-                orientation: "vertical"
-                padding: dp(20)
-                spacing: dp(12)
-                size_hint_y: None
-                height: self.minimum_height
-
-                MDRaisedButton:
-                    text: "Add Student"
-                    size_hint_x: 0.8
-                    pos_hint: {"center_x": 0.5}
-                    on_release: app.root.current = 'add_student'
-
-                MDRaisedButton:
-                    text: "Add Payment"
-                    size_hint_x: 0.8
-                    pos_hint: {"center_x": 0.5}
-                    on_release: app.root.current = 'add_payment'
-
-                MDRaisedButton:
-                    text: "View Students"
-                    size_hint_x: 0.8
-                    pos_hint: {"center_x": 0.5}
-                    on_release: app.root.current = 'view_students'
-
-                MDRaisedButton:
-                    text: "View Payments"
-                    size_hint_x: 0.8
-                    pos_hint: {"center_x": 0.5}
-                    on_release: app.root.current = 'view_payments'
-
-                MDRaisedButton:
-                    text: "Export to Excel"
-                    size_hint_x: 0.8
-                    pos_hint: {"center_x": 0.5}
-                    on_release: app.root.current = 'export'
-
-
-<AddStudentScreen>:
-    name: 'add_student'
-    MDBoxLayout:
-        orientation: "vertical"
-        MDTopAppBar:
-            title: "Add Student"
-            elevation: 10
-            left_action_items: [["arrow-left", lambda x: root.go_back()]]
-        Widget:
-            size_hint_y: None
-            height: dp(20)
-        ScrollView:
-            MDBoxLayout:
-                orientation: "vertical"
-                padding: dp(20)
-                spacing: dp(15)
-                size_hint_y: None
-                height: self.minimum_height
-
-                MDTextField:
-                    id: name
-                    hint_text: "Name"
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: aadhaar
-                    hint_text: "Aadhaar"
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: qualification
-                    hint_text: "Qualification"
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: course
-                    hint_text: "Course Name"
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: phone
-                    hint_text: "Phone No"
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: fees
-                    hint_text: "Full Fees"
-                    input_filter: 'float'
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-
-                MDTextField:
-                    id: date
-                    hint_text: "Date of Joining (YYYY-MM-DD)"
-                    readonly: True
-                    size_hint_x: 0.9
-                    pos_hint: {"center_x": 0.5}
-                    on_focus: if self.focus: root.show_date_picker()
-
-                MDRaisedButton:
-                    text: "Submit"
-                    size_hint_x: 0.5
-                    pos_hint: {"center_x": 0.5}
-                    on_release: root.submit()
-
-
-<AddPaymentScreen>:
-    name: 'add_payment'
-    MDScreen:
-        MDTopAppBar:
-            title: "Add Payment"
-            pos_hint: {"top": 1}
-            elevation: 10
-            left_action_items: [["arrow-left", lambda x: root.go_back()]]
-
-        MDBoxLayout:
-            orientation: "vertical"
-            padding: dp(20)
-            spacing: dp(10)
-            pos_hint: {"top": 0.9}
-            size_hint_y: None
-            height: self.minimum_height
-            y: self.parent.height - self.height - dp(56)
-
-            MDTextField:
-                id: aadhaar_phone
-                hint_text: "Aadhaar or Phone"
-                input_type: "number"
-
-            MDTextField:
-                id: amount
-                hint_text: "Amount Paid"
-                input_filter: 'float'
-
-            MDTextField:
-                id: date
-                hint_text: "Payment Date (YYYY-MM-DD)"
-                readonly: True
-                on_focus: if self.focus: root.show_date_picker()
-
-            MDRaisedButton:
-                text: "Submit"
-                on_release: root.submit_payment()
-
-<ViewStudentsScreen>:
-    name: 'view_students'
-    MDBoxLayout:
-        orientation: 'vertical'
-        MDTopAppBar:
-            title: "All Students"
-            left_action_items: [["arrow-left", lambda x: root.go_back()]]
-        BoxLayout:
-            id: box
-
-<ViewPaymentsScreen>:
-    name: 'view_payments'
-    MDBoxLayout:
-        orientation: 'vertical'
-        MDTopAppBar:
-            title: "All Payments"
-            left_action_items: [["arrow-left", lambda x: root.go_back()]]
-        BoxLayout:
-            orientation: 'vertical'
-            id: box
-            BoxLayout:
-                id: table_container
-                size_hint_y: 0.8
-            ScrollView:
-                size_hint_y: 0.2
-                MDBoxLayout:
-                    id: summary_container
-                    orientation: 'vertical'
-                    padding: dp(10)
-                    spacing: dp(5)
-
-<ExportScreen>:
-    name: 'export'
-    MDScreen:
-        MDTopAppBar:
-            title: "Export to Excel"
-            pos_hint: {"top": 1}
-            elevation: 10
-            left_action_items: [["arrow-left", lambda x: root.go_back()]]
-        MDBoxLayout:
-            orientation: "vertical"
-            padding: dp(20)
-            spacing: dp(20)
-            size_hint_y: None
-            height: self.minimum_height
-            pos_hint: {"top": 0.9}
-            y: self.parent.height - self.height - dp(56)
-
-            MDRaisedButton:
-                text: "Export Students & Payments"
-                pos_hint: {"center_x": 0.5}
-                on_release: root.do_export()
-'''
-
-
-
+# App entry
 class StudentApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = "Indigo"
         create_tables()
-        return Builder.load_string(KV)
-
+        return Builder.load_file("main.kv")
 
 if __name__ == '__main__':
     StudentApp().run()
