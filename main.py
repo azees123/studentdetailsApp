@@ -4,24 +4,12 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
+import sqlite3
 from kivymd.uix.datatables import MDDataTable
 from kivy.metrics import dp
+import pandas as pd
 from kivymd.uix.pickers import MDDatePicker
 
-import sqlite3
-import pandas as pd
-import os
-
-# Android-specific imports
-from android.permissions import request_permissions, Permission
-from android.storage import primary_external_storage_path
-
-
-def get_export_paths():
-    base_path = primary_external_storage_path()
-    students_path = os.path.join(base_path, "students.xlsx")
-    payments_path = os.path.join(base_path, "payments.xlsx")
-    return students_path, payments_path
 
 
 def create_tables():
@@ -94,7 +82,6 @@ def get_all_students():
     conn.close()
     return rows
 
-
 def get_all_payments():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -114,14 +101,14 @@ def export_data():
         students_df = pd.read_sql_query("SELECT * FROM students", conn)
         payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
 
-        students_path, payments_path = get_export_paths()
-        students_df.to_excel(students_path, index=False)
-        payments_df.to_excel(payments_path, index=False)
-
+        students_df.to_excel("students.xlsx", index=False)
+        payments_df.to_excel("payments.xlsx", index=False)
         conn.close()
-        return f"Exported to:\n{students_path}\n{payments_path}"
+        return "Exported to students.xlsx and payments.xlsx successfully!"
     except Exception as e:
         return f"Export failed: {str(e)}"
+
+
 
 
 class MainScreen(Screen):
@@ -530,12 +517,13 @@ ScreenManager:
                 on_release: root.do_export()
 '''
 
+
+
 class StudentApp(MDApp):
     def build(self):
         self.theme_cls.primary_palette = "Indigo"
-        request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE])
         create_tables()
-        return Builder.load_string(KV)  # Include your KV string here
+        return Builder.load_string(KV)
 
 
 if __name__ == '__main__':
