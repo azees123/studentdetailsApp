@@ -9,47 +9,38 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      # Step 1: Checkout code
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.8
-
-      - name: Install Dependencies
+      # Step 2: Fix libtinfo5 issue (Ubuntu 24.04+)
+      - name: Fix libtinfo5 missing error
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            zip unzip openjdk-17-jdk python3-pip \
-            libfreetype6-dev libpng-dev libz-dev \
-            libffi-dev build-essential \
-            libsqlite3-dev libjpeg-dev git \
-            libgl1-mesa-dev libblas-dev liblapack-dev \
-            wget
+          sudo apt-get install -y libtinfo6
+          sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-          pip install --upgrade pip setuptools wheel Cython==0.29.36
-          pip install buildozer==1.5.0
+      # Step 3: Cache buildozer dependencies to speed up builds
+      - name: Cache Buildozer dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ~/.gradle
+            ~/.cache/pip
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('**/buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
 
-      - name: Install Android SDK Tools (Fix AIDL)
-        run: |
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk
-          cd $HOME/.buildozer/android/platform/android-sdk
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O sdk-tools.zip
-          unzip sdk-tools.zip -d cmdline-tools
-          mkdir -p cmdline-tools/latest
-          mv cmdline-tools/cmdline-tools/* cmdline-tools/latest/
-          yes | cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/.buildozer/android/platform/android-sdk --licenses
-          cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/.buildozer/android/platform/android-sdk \
-            "platform-tools" "platforms;android-31" "build-tools;31.0.0" "ndk;25.1.8937393" "cmake;3.10.2.4988404"
-
+      # Step 4: Build APK using Buildozer
       - name: Build APK
-        run: |
-          buildozer android clean
-          buildozer android debug --verbose
+        uses: digreatbrian/buildozer-action@v2
+        with:
+          python-version: 3.8
+          buildozer-cmd: buildozer -v android debug
 
+      # Step 5: Upload APK as an artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: studentdetailsapp-debug.apk
-          path: bin/*.apk
+          name: BiometricFingerprint-APK
+          path: ./bin/*.apk
