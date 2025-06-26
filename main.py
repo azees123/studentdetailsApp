@@ -9,6 +9,9 @@ from kivymd.uix.datatables import MDDataTable
 from kivy.metrics import dp
 import pandas as pd
 from kivymd.uix.pickers import MDDatePicker
+import csv
+import os
+from kivy.utils import platform
 
 
 
@@ -97,14 +100,30 @@ def get_all_payments():
 
 def export_data():
     try:
-        conn = sqlite3.connect("students.db")
-        students_df = pd.read_sql_query("SELECT * FROM students", conn)
-        payments_df = pd.read_sql_query("SELECT * FROM payments", conn)
+        students = get_all_students()
+        payments = get_all_payments()
 
-        #students_df.to_excel("students.xlsx", index=False)
-        #payments_df.to_excel("payments.xlsx", index=False)
-        conn.close()
-        return "Exported to students.xlsx and payments.xlsx successfully!"
+        # Use Android-safe path if on phone
+        if platform == 'android':
+            from android.storage import app_storage_path
+            base_path = app_storage_path()
+        else:
+            base_path = "."
+
+        students_file = os.path.join(base_path, "students.csv")
+        payments_file = os.path.join(base_path, "payments.csv")
+
+        with open(students_file, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Name", "Aadhaar", "Qualification", "Course", "Phone", "Full Fees", "Remaining", "Date"])
+            writer.writerows(students)
+
+        with open(payments_file, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["PID", "Student ID", "Name", "Aadhaar", "Amount Paid", "Date"])
+            writer.writerows(payments)
+
+        return "Exported to students.csv and payments.csv successfully!"
     except Exception as e:
         return f"Export failed: {str(e)}"
 
