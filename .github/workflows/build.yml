@@ -3,41 +3,49 @@ name: Build Android APK
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: ✅ Checkout Code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: ✅ Fix libtinfo Compatibility (for buildozer)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libtinfo6
-          sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
-
-      - name: ✅ Cache Buildozer Dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.buildozer
-            ~/.gradle
-            ~/.cache/pip
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('**/buildozer.spec') }}
-          restore-keys: |
-            ${{ runner.os }}-buildozer-
-
-      - name: ✅ Build Android APK
-        uses: digreatbrian/buildozer-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
-          buildozer-version: stable
-          buildozer-cmd: buildozer -v android debug
 
-      - name: ✅ Upload APK
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libtinfo6 \
+            zlib1g-dev \
+            libncurses5
+
+      - name: Install Buildozer
+        run: |
+          pip install --upgrade pip setuptools Cython virtualenv
+          pip install buildozer
+
+      - name: Initialize Buildozer
+        run: |
+          buildozer android clean
+          buildozer android debug
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: studentapp-apk
-          path: ./bin/*.apk
+          name: studentmanager-apk
+          path: bin/*.apk
