@@ -37,7 +37,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy,kivymd,pandas,openpyxl,android
+requirements = python3,kivy,kivymd,android
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -164,6 +164,7 @@ android.accept_sdk_license = True
 
 # (list) Pattern to whitelist for the whole project
 #android.whitelist =
+p4a.branch = develop
 
 # (str) Path to a custom whitelist file
 #android.whitelist_src =
