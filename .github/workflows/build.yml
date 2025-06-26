@@ -9,18 +9,15 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # Step 1: Checkout your repository code
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Step 2: Fix libtinfo5 issue (for compatibility)
       - name: Fix libtinfo5 Compatibility
         run: |
           sudo apt-get update
           sudo apt-get install -y libtinfo6
           sudo ln -sf /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-      # Step 3: Cache Buildozer and other dependencies
       - name: Cache Buildozer Dependencies
         uses: actions/cache@v4
         with:
@@ -32,16 +29,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildozer-
 
-      # Step 4: Build APK using Buildozer GitHub Action
       - name: Build Android APK
         uses: digreatbrian/buildozer-action@v2
         with:
           python-version: 3.8
-          buildozer-cmd: buildozer -v android debug
+          buildozer-cmd: buildozer --log-level 2 android debug
 
-      # Step 5: Upload the APK to GitHub Actions artifacts
-      - name: Upload Generated APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: student-management-apk
+          name: studentapp-apk
           path: ./bin/*.apk
