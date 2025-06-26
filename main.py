@@ -12,9 +12,12 @@ import csv
 import os
 from kivy.utils import platform
 
+# ✅ Android storage permission
+if platform == 'android':
+    from android.permissions import request_permissions, Permission
+    request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
 
-
-
+# ✅ Database setup
 def create_tables():
     conn = sqlite3.connect("students.db")
     cursor = conn.cursor()
@@ -37,7 +40,6 @@ def create_tables():
     conn.commit()
     conn.close()
 
-
 def add_student(data):
     try:
         conn = sqlite3.connect("students.db")
@@ -55,7 +57,6 @@ def add_student(data):
         return f"Error: {str(e)}"
     finally:
         conn.close()
-
 
 def add_payment(aadhaar_or_phone, amount, date):
     conn = sqlite3.connect("students.db")
@@ -75,7 +76,6 @@ def add_payment(aadhaar_or_phone, amount, date):
     conn.commit()
     conn.close()
     return "Payment recorded."
-
 
 def get_all_students():
     conn = sqlite3.connect("students.db")
@@ -97,13 +97,11 @@ def get_all_payments():
     conn.close()
     return rows
 
-
 def export_data():
     try:
         students = get_all_students()
         payments = get_all_payments()
 
-        # Use Android-safe path if on phone
         if platform == 'android':
             from android.storage import app_storage_path
             base_path = app_storage_path()
@@ -127,12 +125,9 @@ def export_data():
     except Exception as e:
         return f"Export failed: {str(e)}"
 
+# ✅ Screens
 
-
-
-class MainScreen(Screen):
-    pass
-
+class MainScreen(Screen): pass
 
 class AddStudentScreen(Screen):
     def submit(self):
@@ -170,7 +165,6 @@ class AddStudentScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
 class AddPaymentScreen(Screen):
     def submit_payment(self):
         id_val = self.ids.aadhaar_phone.text
@@ -204,7 +198,6 @@ class AddPaymentScreen(Screen):
 
     def go_back(self):
         self.manager.current = 'main'
-
 
 class ViewStudentsScreen(Screen):
     def on_enter(self):
@@ -241,7 +234,6 @@ class ViewStudentsScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
 class ViewPaymentsScreen(Screen):
     def on_enter(self):
         self.ids.table_container.clear_widgets()
@@ -275,7 +267,6 @@ class ViewPaymentsScreen(Screen):
         )
         self.ids.table_container.add_widget(table)
 
-        
         totals = {}
         for p in payments:
             student_id = p[1]
@@ -294,8 +285,6 @@ class ViewPaymentsScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
-
 class ExportScreen(Screen):
     def do_export(self):
         msg = export_data()
@@ -311,8 +300,7 @@ class ExportScreen(Screen):
     def go_back(self):
         self.manager.current = 'main'
 
-
-
+# ✅ UI KV STRING
 
 KV = '''
 ScreenManager:
@@ -536,7 +524,7 @@ ScreenManager:
                 on_release: root.do_export()
 '''
 
-
+# ✅ App class
 
 class StudentApp(MDApp):
     def build(self):
@@ -554,7 +542,6 @@ class StudentApp(MDApp):
             buttons=[MDFlatButton(text="Exit", on_release=lambda x: exit())]
         )
         dialog.open()
-
 
 if __name__ == '__main__':
     StudentApp().run()
