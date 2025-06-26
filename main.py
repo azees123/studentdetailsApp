@@ -7,7 +7,6 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 import sqlite3
 from kivymd.uix.datatables import MDDataTable
 from kivy.metrics import dp
-import pandas as pd
 from kivymd.uix.pickers import MDDatePicker
 import csv
 import os
